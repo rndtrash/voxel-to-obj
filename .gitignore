@@ -1,0 +1,12 @@
+# nano
+*.swp
+
+# runtime output
+*.obj
+
+# C
+*.o
+
+# program
+voxel
+voxel.exe
