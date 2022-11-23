@@ -191,24 +191,24 @@ void voxel_greedy(voxel_model *vm)
 
 void voxel_simple(voxel_model *vm)
 {
+	/* Replace Y with - 1 if it points down */
+	static const int vertex_offsets[8][3] = {
+		{ 0, 0, 0 },
+		{ 0, 1, 0 },
+		{ 0, 0, 1 },
+		{ 0, 1, 1 },
+		{ 1, 0, 0 },
+		{ 1, 1, 0 },
+		{ 1, 0, 1 },
+		{ 1, 1, 1 }
+	};
+
 	for (int x = 0; x < vm->size; x++)
 	for (int y = 0; y < vm->size; y++)
 	for (int z = 0; z < vm->size; z++)
 	{
 		if (vm->voxels[x][y][z] == 0)
 			continue;
-
-		/* Replace Y with - 1 if it points down */
-		const int vertex_offsets[8][3] = {
-			{ 0, 0, 0 },
-			{ 0, 1, 0 },
-			{ 0, 0, 1 },
-			{ 0, 1, 1 },
-			{ 1, 0, 0 },
-			{ 1, 1, 0 },
-			{ 1, 0, 1 },
-			{ 1, 1, 1 }
-		};
 
 		int vertices_cache[8] = { -1, -1, -1, -1, -1, -1, -1, -1 };
 		int _get_v(const int i)
