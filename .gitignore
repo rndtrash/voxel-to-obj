@@ -4,9 +4,6 @@
 # runtime output
 *.obj
 
-# C
-*.o
-
-# program
-voxel
-voxel.exe
+# valgrind
+valgrind*.log
+valgrind*.err
