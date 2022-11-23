@@ -15,7 +15,8 @@
 int main(int argc, char **argv)
 {
 	voxel_model *vm = malloc(sizeof *vm);
-	voxel_init(vm, VOXEL_SIDE);
+	if (!voxel_init(vm, VOXEL_SIDE))
+		return -1;
 
 	/* Generating voxel world */
 	printf("Generating voxel world...\n");
@@ -41,57 +42,51 @@ int main(int argc, char **argv)
 	struct timespec t_start;
 	clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &t_start);
 
-	voxel_greedy(vm);
-//	voxel_simple(vm);
+	if (argc > 1 && argv[1][0] == 's')
+		voxel_simple(vm);
+	else
+		voxel_greedy(vm);
 
 	struct timespec t_finish;
 	clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &t_finish);
 	printf("Done. Time elapsed: %f seconds\n", (t_finish.tv_sec - t_start.tv_sec) + (t_finish.tv_nsec - t_start.tv_nsec) / 1000000000.0f);
 
 	/* Writing the mesh to output.obj */
-	if (argc > 1 && argv[1][0] == 's')
+	printf("Making the mesh to \"output.obj\"...\n");
+	FILE *f = fopen("output.obj", "w");
+
+	/* Writing verties */
 	{
-		printf("Skipping mesh write...\n");
+		vertex_hash *current = NULL;
+		vertex_hash *temp = NULL;
+		HASH_ITER(hh, vm->vertices, current, temp)
+		{
+			fprintf(
+				f,
+				"v %i %i %i\n",
+				EXTRACT_BITS(current->id, 0, vm->_axisBits), // x
+				EXTRACT_BITS(current->id, vm->_axisBits, vm->_axisBits), // y
+				EXTRACT_BITS(current->id, vm->_axisBits * 2, vm->_axisBits) // z
+			);
+		}
 	}
-	else
+
+	/* Writing faces */
 	{
-		printf("Making the mesh to \"output.obj\"...\n");
-		FILE *f = fopen("output.obj", "w");
-
-		/* Writing verties */
+		face_list *current = vm->faces;
+		while (current != NULL)
 		{
-			vertex_hash *current = NULL;
-			vertex_hash *temp = NULL;
-			HASH_ITER(hh, vm->vertices, current, temp)
-			{
-				fprintf(
-					f,
-					"v %i %i %i\n",
-					EXTRACT_BITS(current->id, 0, vm->_axisBits), // x
-					EXTRACT_BITS(current->id, vm->_axisBits, vm->_axisBits), // y
-					EXTRACT_BITS(current->id, vm->_axisBits * 2, vm->_axisBits) // z
-				);
-			}
+			fprintf(
+				f,
+				"f %i %i %i\n",
+				current->indices[0] + 1,
+				current->indices[1] + 1,
+				current->indices[2] + 1
+			);
+			current = current->next;
 		}
-
-		/* Writing faces */
-		{
-			face_list *current = vm->faces;
-			while (current != NULL)
-			{
-				fprintf(
-					f,
-					"f %i %i %i\n",
-					current->indices[0] + 1,
-					current->indices[1] + 1,
-					current->indices[2] + 1
-				);
-				current = current->next;
-			}
-		}
-
-		fclose(f);
 	}
+	fclose(f);
 
 	voxel_free(vm);
 	free(vm);

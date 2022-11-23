@@ -3,7 +3,7 @@
 #include <limits.h>
 #include <voxel_utils.h>
 
-void voxel_init(voxel_model *vm, const int size)
+int voxel_init(voxel_model *vm, const int size)
 {
 	vm->size = size;
 	vm->vertexIota = 0;
@@ -13,9 +13,12 @@ void voxel_init(voxel_model *vm, const int size)
 	vm->_axisBits = bitwidth(size) + 1;
 	vm->_axisMask = 0xFFFFFFFF >> (32 - vm->_axisBits);
 
-	vm->_voxelsPP = calloc(size, sizeof(char**));
-	vm->_voxelsP = calloc(size * size, sizeof(char*));
-	vm->_voxels = calloc(size * size * size, sizeof(char));
+	if ((vm->_voxelsPP = calloc(size, sizeof(char**))) == NULL)
+		return 0;
+	if ((vm->_voxelsP = calloc(size * size, sizeof(char*))) == NULL)
+		return 0;
+	if ((vm->_voxels = calloc(size * size * size, sizeof(char))) == NULL)
+		return 0;
 
 	for (int i = 0; i < size; ++i) {
 		vm->_voxelsPP[i] = vm->_voxelsP + (i * size);
@@ -30,6 +33,8 @@ void voxel_init(voxel_model *vm, const int size)
 #ifdef DEBUG
 	printf("voxel_init: _axisBits=%i", vm->_axisBits);
 #endif
+
+	return 1;
 }
 
 void voxel_free(voxel_model *vm)
@@ -70,7 +75,9 @@ void voxel_greedy(voxel_model *vm)
 
 	inline void add_rect(rect_list **list, rect rect)
 	{
-		rect_list *r = malloc(sizeof *r);
+		rect_list *r;
+		if (!(r = malloc(sizeof *r)))
+			return;
 		r->rect.x = rect.x;
 		r->rect.y = rect.y;
 		r->rect.z = rect.z;
@@ -122,7 +129,8 @@ void voxel_greedy(voxel_model *vm)
 #ifdef DEBUG
 					printf("Making a new %i,%i,%i entry!\n", x, y, z);
 #endif
-					current = malloc(sizeof *current);
+					if (!(current = malloc(sizeof *current)))
+						return;
 					current->id = y;
 					current->r = NULL;
 					HASH_ADD_INT(rectHash, id, current);
@@ -189,10 +197,10 @@ void voxel_greedy(voxel_model *vm)
 	// TODO: Back, Left, Right, Top, Bottom
 }
 
-void voxel_simple(voxel_model *vm)
+int _get_v(voxel_model *vm, int *verticesCache, const int i, const int x, const int y, const int z)
 {
 	/* Replace Y with - 1 if it points down */
-	static const int vertex_offsets[8][3] = {
+	static const int vertexOffsets[8][3] = {
 		{ 0, 0, 0 },
 		{ 0, 1, 0 },
 		{ 0, 0, 1 },
@@ -203,6 +211,14 @@ void voxel_simple(voxel_model *vm)
 		{ 1, 1, 1 }
 	};
 
+	if (verticesCache[i] == -1)
+		verticesCache[i] = voxel_get_index(vm, x + vertexOffsets[i][0], y + vertexOffsets[i][1], z + vertexOffsets[i][2]);
+	return verticesCache[i];
+}
+
+void voxel_simple(voxel_model *vm)
+{
+#define GET_V(i) (_get_v(vm, vc, i, x, y, z))
 	for (int x = 0; x < vm->size; x++)
 	for (int y = 0; y < vm->size; y++)
 	for (int z = 0; z < vm->size; z++)
@@ -210,30 +226,25 @@ void voxel_simple(voxel_model *vm)
 		if (vm->voxels[x][y][z] == 0)
 			continue;
 
-		int vertices_cache[8] = { -1, -1, -1, -1, -1, -1, -1, -1 };
-		int _get_v(const int i)
-		{
-			if (vertices_cache[i] == -1)
-				vertices_cache[i] = voxel_get_index(vm, x + vertex_offsets[i][0], y + vertex_offsets[i][1], z + vertex_offsets[i][2]);
-			return vertices_cache[i];
-		}
+		int vc[8] = { -1, -1, -1, -1, -1, -1, -1, -1 }; // vertices cache
 
 		/* Front and back */
 		if (!VERTEX_VALID(x - 1, y, z, vm->size) || vm->voxels[x - 1][y][z] == 0)
-			voxel_make_face(vm, _get_v(2), _get_v(3), _get_v(1), _get_v(0));
+			voxel_make_face(vm, GET_V(2), GET_V(3), GET_V(1), GET_V(0));
 		if (!VERTEX_VALID(x + 1, y, z, vm->size) || vm->voxels[x + 1][y][z] == 0)
-			voxel_make_face(vm, _get_v(4), _get_v(5), _get_v(7), _get_v(6));
+			voxel_make_face(vm, GET_V(4), GET_V(5), GET_V(7), GET_V(6));
 
 		/* Left and right */
 		if (!VERTEX_VALID(x, y, z - 1, vm->size) || vm->voxels[x][y][z - 1] == 0)
-			voxel_make_face(vm, _get_v(0), _get_v(1), _get_v(5), _get_v(4));
+			voxel_make_face(vm, GET_V(0), GET_V(1), GET_V(5), GET_V(4));
 		if (!VERTEX_VALID(x, y, z + 1, vm->size) || vm->voxels[x][y][z + 1] == 0)
-			voxel_make_face(vm, _get_v(6), _get_v(7), _get_v(3), _get_v(2));
+			voxel_make_face(vm, GET_V(6), GET_V(7), GET_V(3), GET_V(2));
 
 		/* Top and bottom */
 		if (!VERTEX_VALID(x, y - 1, z, vm->size) || vm->voxels[x][y - 1][z] == 0)
-			voxel_make_face(vm, _get_v(6), _get_v(2), _get_v(0), _get_v(4));
+			voxel_make_face(vm, GET_V(6), GET_V(2), GET_V(0), GET_V(4));
 		if (!VERTEX_VALID(x, y + 1, z, vm->size) || vm->voxels[x][y + 1][z] == 0)
-			voxel_make_face(vm, _get_v(3), _get_v(7), _get_v(5), _get_v(1));
+			voxel_make_face(vm, GET_V(3), GET_V(7), GET_V(5), GET_V(1));
 	}
+#undef GET_V
 }
