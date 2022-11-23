@@ -3,7 +3,7 @@ OBJECTS := $(SOURCES:src/%.c=bin/%.o)
 HEADERS := 3rd/uthash.h src/include/voxel.h src/include/voxel_utils.h src/include/voxel_types.h
 INCLUDES := 3rd src/include
 
-override CFLAGS += -std=gnu11 -Wall -Wextra -D_POSIX_SOURCE -D_GNU_SOURCE $(INCLUDES:%=-I%)
+override CFLAGS += -std=c11 -Wall -Wextra -D_POSIX_SOURCE -D_GNU_SOURCE $(INCLUDES:%=-I%)
 override LDFLAGS += -lm -lrt
 
 .PHONY: all clean

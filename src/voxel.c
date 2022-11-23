@@ -64,37 +64,38 @@ void voxel_free(voxel_model *vm)
 	}
 }
 
+typedef struct rect_list
+{
+	rect rect;
+	struct rect_list *next;
+}
+rect_list;
+
+void add_rect(rect_list **list, rect rect)
+{
+	rect_list *r;
+	if (!(r = malloc(sizeof *r)))
+		return;
+
+	r->rect.x = rect.x;
+	r->rect.y = rect.y;
+	r->rect.z = rect.z;
+	r->rect.w = rect.w;
+	r->rect.h = rect.h;
+
+	if (*list != NULL)
+	{
+		r->next = *list;
+	}
+	else
+	{
+		r->next = NULL;
+	}
+	*list = r;
+}
+
 void voxel_greedy(voxel_model *vm)
 {
-	typedef struct rect_list
-	{
-		rect rect;
-		struct rect_list *next;
-	}
-	rect_list;
-
-	inline void add_rect(rect_list **list, rect rect)
-	{
-		rect_list *r;
-		if (!(r = malloc(sizeof *r)))
-			return;
-		r->rect.x = rect.x;
-		r->rect.y = rect.y;
-		r->rect.z = rect.z;
-		r->rect.w = rect.w;
-		r->rect.h = rect.h;
-
-		if (*list != NULL)
-		{
-			r->next = *list;
-		}
-		else
-		{
-			r->next = NULL;
-		}
-		*list = r;
-	}
-
 	typedef struct rect_hash
 	{
 		int id;			/* key */
